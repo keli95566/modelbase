@@ -428,7 +428,7 @@ class Model:
         """
         raise NotImplementedError("You have to implement the _set_model_params method in your model!")
 
-    def set_data(self, df, silently_drop=False, **kwargs):
+    def set_data(self, df, silently_drop=False, bool_test_data=True, **kwargs):
         """Derives suitable, cleansed (and copied) data from df for a particular model, sets this as the models data
          and also sets up auxiliary data structures if necessary. This is however, only concerned with the data
          part of the model and does not do any fitting of the model.
@@ -467,7 +467,7 @@ class Model:
             raise ValueError("Cannot fit to data frame with no columns.")
 
         # model specific clean up, setting of data, models fields, and possible more model specific stuff
-        callbacks = self._set_data(df, silently_drop, **kwargs)
+        callbacks = self._set_data(df, silently_drop, bool_test_data, **kwargs)
         self.mode = 'data'
         self._update_all_field_derivatives()
         for callback in callbacks:
@@ -481,7 +481,7 @@ class Model:
         for f in self.fields:
             self.history[f['name']] = {'conditioned': [], 'marginalized': None}
 
-    def _set_data(self, df, silently_drop, **kwargs):
+    def _set_data(self, df, silently_drop, bool_test_data, **kwargs):
         """Set the data for this model instance using the data frame `df`. After completion of this method
         the following attributes are set:
 
@@ -500,7 +500,7 @@ class Model:
         """
         raise NotImplementedError("your model must implement this method")
 
-    def _set_data_mixed(self, df, silently_drop, num_names=None, cat_names=None, **kwargs):
+    def _set_data_mixed(self, df, silently_drop, bool_test_data, num_names=None, cat_names=None, **kwargs):
         """See Model._set_data"""
 
         # split in categorical and numeric columns
@@ -518,7 +518,11 @@ class Model:
 
         # shuffle and set data frame
         df = df.sample(frac=1, random_state=42).reset_index(drop=True)
-        self.test_data, self.data = data_import_utils.split_training_test_data(df)
+        if (bool_test_data):
+            self.test_data, self.data = data_import_utils.split_training_test_data(df)
+        else:
+            self.test_data = pd.DataFrame([], columns=df.columns)
+            self.data = df
 
         # derive and set fields
         self.fields = data_import_utils.get_discrete_fields(df, self._categoricals) + \
